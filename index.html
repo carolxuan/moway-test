@@ -11,7 +11,7 @@
 <body>
   <div id="app">
     <div class="float-icon btn-group ms-auto">
-      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#exampleModalCenter">點擊</button>
+      <button type="button" class="btn btn-primary submit-btn" data-bs-toggle="modal" data-bs-target="#exampleModalCenter">!</button>
     </div>
     <!-- Modal -->
     <div class="modal fade" id="exampleModalCenter" tabindex="-1" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
@@ -54,22 +54,56 @@
                 <span>請支持 PNG JPG 格式，每張 5MB 內</span>
               </div>
               <div>
-                <el-upload
-                  class="avatar-uploader mb-3"
-                  action="https://run.mocky.io/v3/9d059bf9-4660-45f2-925d-ce80ad6c4d15"
-                  :show-file-list="false"
-                  :on-success="handleAvatarSuccess"
-                  :before-upload="beforeAvatarUpload"
-                  >
-                  <img v-if="imageUrl" :src="imageUrl" class="avatar" />
-                  <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+                <el-upload action="#" list-type="picture-card" :auto-upload="false" v-model:file-list="fileList" :limit="3" :on-exceed="handleExceed" v-if="fileList.length < 3">
+                  <el-icon><Plus /></el-icon>
+              
+                  <template #file="{ file }">
+                    <div>
+                      <img class="el-upload-list__item-thumbnail" :src="file.url" alt="" />
+                      <span class="el-upload-list__item-actions">
+                        <span
+                          class="el-upload-list__item-preview"
+                          @click="handlePictureCardPreview(file)"
+                        >
+                          <el-icon><zoom-in /></el-icon>
+                          
+                        </span>
+                        <span
+                          v-if="!disabled"
+                          class="el-upload-list__item-delete"
+                          @click="handleDownload(file)"
+                        >
+                          <el-icon><Download /></el-icon>
+                        </span>
+                        <span
+                          v-if="!disabled"
+                          class="el-upload-list__item-delete"
+                          @click="handleRemove(file)"
+                        >
+                          <el-icon><Delete /></el-icon>
+                        </span>
+                      </span>
+                    </div>
+                  </template>
                 </el-upload>
+              
+                <el-dialog v-model="dialogVisible">
+                  <img w-full :src="dialogImageUrl" alt="Preview Image"/>
+                </el-dialog>
               </div>
-              <div>可提供意見/問題截圖(上傳數量0/3)</div>
+              <div>可提供意見/問題截圖(上傳數量 {{ fileList.length }} / 3)</div>
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-primary w-100">提交</button>
+            <el-button type="primary" class="btn btn-primary w-100" @click="handleSubmit">提交</el-button>
+            <el-dialog
+              title="提交成功"
+              v-model="dialogSuccess"
+              width="30%">
+              <p>感謝您的反饋，我們將繼續努力，提供更優質的服務！</p>
+              <span>{{ countdown }} 秒後自動關閉</span>
+            </el-dialog>
+          </el-dialog>
           </div>
         </div>
       </div>
@@ -77,14 +111,13 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js" integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy" crossorigin="anonymous"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.37/vue.global.prod.min.js"></script>
   <script src="https://unpkg.com/vue@3"></script>
   <script src="https://cdn.jsdelivr.net/npm/element-plus"></script>
   <script src="https://unpkg.com/@element-plus/icons-vue"></script>
   <script>
     const { createApp, ref } = Vue;
-    const { Plus } = ElementPlusIconsVue;
-    const { ElMessage, UploadProps } = ElementPlus
+    const { Delete, Download, Plus, ZoomIn } = ElementPlusIconsVue;
+    const { UploadFile } = ElementPlus;
 
     const app = createApp({
       
@@ -109,37 +142,67 @@
           },
         ]
 
-        const imageUrl = ref('');
-
-        const handleAvatarSuccess = (response, uploadFile) => {
-          imageUrl.value = URL.createObjectURL(uploadFile.raw);
-        };
-
-        const beforeAvatarUpload = (rawFile) => {
-          const isJPG = rawFile.type === 'image/jpeg';
-          const isPNG = rawFile.type === 'image/png';
-          if (!isJPG && !isPNG) {
-            ElMessage.error('Avatar picture must be JPG or PNG format!');
-            return false;
-          } else if (rawFile.size / 1024 / 1024 > 5) {
-            ElMessage.error('Avatar picture size can not exceed 5MB!');
-            return false;
+        const dialogImageUrl = ref('')
+        const dialogVisible = ref(false)
+        const disabled = ref(false)
+        const fileList = ref([])
+        const handleRemove = (file) => {
+          console.log(file)
+          const index = fileList.value.indexOf(file);
+          if (index !== -1) {
+            fileList.value.splice(index, 1);
           }
-          return true;
-        };
+        }
+        const handlePictureCardPreview = (file) => {
+          dialogImageUrl.value = file.url || '';
+          dialogVisible.value = true;
+        }
+        const handleDownload = (file) => {
+          console.log(file)
+        }
+        const handleExceed = (files, fileList) => {
+          alert('超過最大上傳數量，只能上傳三張圖片')
+        }
+
+        const dialogDisplay = ref(false)
+        const dialogSuccess = ref(false)
+        const countdown = ref(5)
+        const handleSubmit = () => {
+          dialogDisplay.value = false
+          dialogSuccess.value = true
+          countdown.value = 5
+          const timer = setInterval(() => {
+            countdown.value -= 1;
+            if (countdown.value === 0) {
+              clearInterval(timer)
+              dialogSuccess.value = false
+            }
+          }, 1000);
+        }
 
         return {
           value,
           options,
-          imageUrl,
-          handleAvatarSuccess,
-          beforeAvatarUpload
+          fileList,
+          dialogImageUrl,
+          dialogVisible,
+          disabled,
+          handleExceed,
+          handleRemove,
+          handlePictureCardPreview,
+          handleDownload,
+          dialogDisplay,
+          dialogSuccess,
+          handleSubmit,
+          countdown,
         }
-      }
-        
+      }      
     });
     app.use(ElementPlus);
     app.component('Plus', Plus);
+    app.component('Delete', Delete);
+    app.component('Download', Download);
+    app.component('ZoomIn', ZoomIn);
     app.mount('#app');
   </script>
 </body>
